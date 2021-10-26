@@ -4,7 +4,7 @@
 #include <linux/uaccess.h>
 
 
-MODULE_LICENSE(" ");
+MODULE_LICENSE("");
 
 
 static int my_init(void){
@@ -13,7 +13,7 @@ static int my_init(void){
 }
 
 
-static void my_exit(){
+static void my_exit(void){
 	printk(KERN_NOTICE "Exit LKM\n");
 	return;
 }
