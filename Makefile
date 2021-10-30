@@ -1,10 +1,21 @@
 obj-m := button-led.o
 
+
+TARGET_MODULE:=button_led
+
+
+ifneq ($(KERNELRELEASE),)
+	$(TARGET_MODULE)-objs := button-led.o
+	obj-m := $(TARGET_MODULE).o
+else
+	BUILDSYSTEM_DIR:=/lib/modules/$(shell uname -r)/build
+	PWD:=$(shell pwd)
 all:
-	make -C /lib/modules/$(shell uname -r)/build M=$(shell pwd) modules
+	$(MAKE) -C $(BUILDSYSTEM_DIR) M=$(PWD) modules
 clean:
-	make -C /lib/modules/$(shell uname -r)/build M=$(shell pwd) clean
+	$(MAKE) -C $(BUILDSYSTEM_DIR) M=$(PWD) clean
 install:
-	insmod button-led.ko
+	insmod ./$(TARGET_MODULE).ko
 delete:
-	rmmod button-led.ko
+	rmmod ./$(TARGET_MODULE).ko
+endif
