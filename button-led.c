@@ -9,12 +9,12 @@ MODULE_AUTHOR("Luis Servera");
 MODULE_DESCRIPTION("A Button/LED test driver for the BBB");
 MODULE_VERSION("0.1");
 
-static unsigned int gpioLED1 = 38;///< hard coding the LED gpio for this example to P9_23 (GPIO49)
-static unsigned int gpioLED2 = 36;
-static unsigned int gpioButton1 = 37;   ///< hard coding the button gpio for this example to P9_27 (GPIO115)
-static unsigned int gpioButton2 = 35;
-static unsigned int gpioButton3 = 33;
-static unsigned int gpioButton4 = 40;
+static unsigned int gpioLED1 = 21;///< hard coding the LED gpio for this example to P9_23 (GPIO49)
+static unsigned int gpioLED2 = 20;
+static unsigned int gpioButton1 = 14;   ///< hard coding the button gpio for this example to P9_27 (GPIO115)
+static unsigned int gpioButton2 = 15;
+static unsigned int gpioButton3 = 18;
+static unsigned int gpioButton4 = 23;
 static unsigned int irqNumberButton1;          ///< Used to share the IRQ number within this file
 static unsigned int irqNumberButton2;
 static unsigned int irqNumberButton3;
