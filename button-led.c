@@ -4,7 +4,7 @@
 #include <linux/gpio.h>                 // Required for the GPIO functions
 #include <linux/interrupt.h>            // Required for the IRQ code
 
-MODULE_LICENSE("");
+MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Luis Servera");
 MODULE_DESCRIPTION("A Button/LED test driver for the BBB");
 MODULE_VERSION("0.1");
@@ -60,11 +60,11 @@ static int __init ebbgpio_init(void){
    led2On = true;
    
    gpio_request(gpioLED1, "sysfs");          // gpioLED is hardcoded to 49, request it
-   gpio_direction_output(gpioLED1, ledOn);   // Set the gpio to be in output mode and on
+   gpio_direction_output(gpioLED1, led1On);   // Set the gpio to be in output mode and on
    gpio_export(gpioLED1, false);             // Causes gpio49 to appear in /sys/class/gpio
 			                    // the bool argument prevents the direction from being changed
    gpio_request(gpioLED2, "sysfs");          // gpioLED is hardcoded to 49, request it
-   gpio_direction_output(gpioLED2, ledOn);   // Set the gpio to be in output mode and on
+   gpio_direction_output(gpioLED2, led2On);   // Set the gpio to be in output mode and on
    gpio_export(gpioLED2, false);             // Causes gpio49 to appear in /sys/class/gpio
    
    gpio_request(gpioButton1, "sysfs");       // Set up the gpioButton
@@ -146,17 +146,37 @@ static int __init ebbgpio_init(void){
  *  GPIOs and display cleanup messages.
  */
 static void __exit ebbgpio_exit(void){
-   printk(KERN_INFO "GPIO_TEST: The button 1 state is currently: %d\n", gpio_get_value(gpioButton));
-   printk(KERN_INFO "GPIO_TEST: The button was pressed %d times\n", numberPresses);
-   gpio_set_value(gpioLED, 0);              // Turn the LED off, makes it clear the device was unloaded
-   gpio_unexport(gpioLED);                  // Unexport the LED GPIO
-   free_irq(irqNumber, NULL);               // Free the IRQ number, no *dev_id required in this case
-   gpio_unexport(gpioButton);               // Unexport the Button GPIO
-   gpio_free(gpioLED);                      // Free the LED GPIO
-   gpio_free(gpioButton);                   // Free the Button GPIO
+   printk(KERN_INFO "GPIO_TEST: The button 1 state is currently: %d\n", gpio_get_value(gpioButton1));
+   printk(KERN_INFO "GPIO_TEST: The button 1 was pressed %d times\n", button1Presses);
+   
+   gpio_set_value(gpioLED1, 0);              // Turn the LED off, makes it clear the device was unloaded
+   gpio_unexport(gpioLED1);   // Unexport the LED GPIO
+   gpio_free(gpioLED1);
+
+   gpio_set_value(gpioLED2, 0);
+   gpio_unexport(gpioLED2);
+   gpio_free(gpioLED2);
+
+   free_irq(irqNumberButton1, NULL);               // Free the IRQ number, no *dev_id required in this case
+   gpio_unexport(gpioButton1);               // Unexport the Button GPIO
+   gpio_free(gpioButton1);                   // Free the Button GPIO
+
+   free_irq(irqNumberButton2, NULL);               // Free the IRQ number, no *dev_id required in this case
+   gpio_unexport(gpioButton2);               // Unexport the Button GPIO
+   gpio_free(gpioButton2);                   // Free the Button GPIO
+
+
+   free_irq(irqNumberButton3, NULL);               // Free the IRQ number, no *dev_id required in this case
+   gpio_unexport(gpioButton3);               // Unexport the Button GPIO
+   gpio_free(gpioButton3);                   // Free the Button GPIO
+
+   free_irq(irqNumberButton4, NULL);               // Free the IRQ number, no *dev_id required in this case
+   gpio_unexport(gpioButton4);               // Unexport the Button GPIO
+   gpio_free(gpioButton4);                   // Free the Button GPIO
+   
    printk(KERN_INFO "GPIO_TEST: Goodbye from the LKM!\n");
 }
-
+	
 /** @brief The GPIO IRQ Handler function
  *  This function is a custom interrupt handler that is attached to the GPIO above. The same interrupt
  *  handler cannot be invoked concurrently as the interrupt line is masked out until the function is complete.
