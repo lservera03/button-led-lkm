@@ -11,10 +11,10 @@ MODULE_VERSION("0.1");
 
 static unsigned int gpioLED1 = 21;///< hard coding the LED gpio for this example to P9_23 (GPIO49)
 static unsigned int gpioLED2 = 20;
-static unsigned int gpioButton1 = 16;   ///< hard coding the button gpio for this example to P9_27 (GPIO115)
-static unsigned int gpioButton2 = 19;
-static unsigned int gpioButton3 = 12;
-static unsigned int gpioButton4 = 6;
+static unsigned int gpioButton1 = 19;   ///< hard coding the button gpio for this example to P9_27 (GPIO115)
+static unsigned int gpioButton2 = 12;
+static unsigned int gpioButton3 = 13;
+static unsigned int gpioButton4 = 16;
 static unsigned int irqNumberButton1;          ///< Used to share the IRQ number within this file
 static unsigned int irqNumberButton2;
 static unsigned int irqNumberButton3;
@@ -23,8 +23,8 @@ static unsigned int button1Presses = 0;  ///< For information, store the number 
 static unsigned int button2Presses = 0;
 static unsigned int button3Presses = 0;
 static unsigned int button4Presses = 0;
-static bool	    led1On = 0;          ///< Is the LED on or off? Used to invert its state (off by default)
-static bool 	    led2On = 0;
+static bool	    led1On = false;          ///< Is the LED on or off? Used to invert its state (off by default)
+static bool 	    led2On = false;
 
 /// Function prototype for the custom IRQ handler function -- see below for the implementation
 static irq_handler_t  button1_irq_handler(unsigned int irq, void *dev_id, struct pt_regs *regs);
@@ -55,6 +55,22 @@ static int __init ebbgpio_init(void){
       printk(KERN_INFO "GPIO_TEST: invalid LED 2 GPIO\n");
       return -ENODEV;
    }
+   if (!gpio_is_valid(gpioButton1)){
+      printk(KERN_INFO "GPIO_TEST: invalid Button1 GPIO\n");
+      return -ENODEV;
+   }
+   if (!gpio_is_valid(gpioButton2)){
+      printk(KERN_INFO "GPIO_TEST: invalid Button2 GPIO\n");
+      return -ENODEV;
+   }
+   if (!gpio_is_valid(gpioButton3)){
+      printk(KERN_INFO "GPIO_TEST: invalid Button3 GPIO\n");
+      return -ENODEV;
+   }
+   if (!gpio_is_valid(gpioButton4)){
+      printk(KERN_INFO "GPIO_TEST: invalid Button 4 GPIO\n");
+      return -ENODEV;
+   }
    // Going to set up the LED. It is a GPIO in output mode and will be on by default
    led1On = false;
    led2On = false;
@@ -69,22 +85,22 @@ static int __init ebbgpio_init(void){
    
    gpio_request(gpioButton1, "sysfs");       // Set up the gpioButton
    gpio_direction_input(gpioButton1);        // Set the button GPIO to be an input
-   gpio_set_debounce(gpioButton1, 200);      // Debounce the button with a delay of 200ms
+   gpio_set_debounce(gpioButton1, 300);      // Debounce the button with a delay of 200ms
    gpio_export(gpioButton1, false);          // Causes gpio115 to appear in /sys/class/gpio
 			                    // the bool argument prevents the direction from being changed
    gpio_request(gpioButton2, "sysfs");       // Set up the gpioButton
    gpio_direction_input(gpioButton2);        // Set the button GPIO to be an input
-   gpio_set_debounce(gpioButton2, 200);      // Debounce the button with a delay of 200ms
+   gpio_set_debounce(gpioButton2, 300);      // Debounce the button with a delay of 200ms
    gpio_export(gpioButton2, false);          // Causes gpio115 to appear in /sys/class/gpio
 
    gpio_request(gpioButton3, "sysfs");       // Set up the gpioButton
    gpio_direction_input(gpioButton3);        // Set the button GPIO to be an input
-   gpio_set_debounce(gpioButton3, 200);      // Debounce the button with a delay of 200ms
+   gpio_set_debounce(gpioButton3, 300);      // Debounce the button with a delay of 200ms
    gpio_export(gpioButton3, false);          // Causes gpio115 to appear in /sys/class/gpio
 
    gpio_request(gpioButton4, "sysfs");       // Set up the gpioButton
    gpio_direction_input(gpioButton4);        // Set the button GPIO to be an input
-   gpio_set_debounce(gpioButton4, 200);      // Debounce the button with a delay of 200ms
+   gpio_set_debounce(gpioButton4, 300);      // Debounce the button with a delay of 200ms
    gpio_export(gpioButton4, false);          // Causes gpio115 to appear in /sys/class/gpio
    
    // Perform a quick test to see that the button is working as expected on LKM load
@@ -217,7 +233,7 @@ static irq_handler_t button3_irq_handler(unsigned int irq, void *dev_id, struct 
 static irq_handler_t button4_irq_handler(unsigned int irq, void *dev_id, struct pt_regs *regs){
    led2On = false;                          // Invert the LED state on each button press
    gpio_set_value(gpioLED2, led2On);          // Set the physical LED accordingly
-   printk(KERN_INFO "GPIO_TEST: Interrupt! (button 1 state is %d)\n", gpio_get_value(gpioButton4));
+   printk(KERN_INFO "GPIO_TEST: Interrupt! (button 4 state is %d)\n", gpio_get_value(gpioButton4));
    button4Presses++;                         // Global counter, will be outputted when the module is unloaded
    return (irq_handler_t) IRQ_HANDLED;      // Announce that the IRQ has been handled correctly
 }
