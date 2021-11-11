@@ -1,32 +1,38 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/gpio.h>                 // Required for the GPIO functions
-#include <linux/interrupt.h>            // Required for the IRQ code
+#include <linux/gpio.h>                 
+#include <linux/interrupt.h>             
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Luis Servera");
-MODULE_DESCRIPTION("A Button/LED test driver for the BBB");
+MODULE_DESCRIPTION("A Button/LED module");
 MODULE_VERSION("0.1");
 
-static unsigned int gpioLED1 = 21;///< hard coding the LED gpio for this example to P9_23 (GPIO49)
+//LEDs GPIOs
+static unsigned int gpioLED1 = 21;
 static unsigned int gpioLED2 = 20;
-static unsigned int gpioButton1 = 19;   ///< hard coding the button gpio for this example to P9_27 (GPIO115)
+//Buttons GPIOs
+static unsigned int gpioButton1 = 19;   
 static unsigned int gpioButton2 = 12;
 static unsigned int gpioButton3 = 13;
 static unsigned int gpioButton4 = 16;
-static unsigned int irqNumberButton1;          ///< Used to share the IRQ number within this file
+//Buttons interruptions request numbers
+static unsigned int irqNumberButton1;          
 static unsigned int irqNumberButton2;
 static unsigned int irqNumberButton3;
 static unsigned int irqNumberButton4;
-static unsigned int button1Presses = 0;  ///< For information, store the number of button presses
+//Counter of presses for every button
+static unsigned int button1Presses = 0;  
 static unsigned int button2Presses = 0;
 static unsigned int button3Presses = 0;
 static unsigned int button4Presses = 0;
-static bool	    led1On = false;          ///< Is the LED on or off? Used to invert its state (off by default)
+//Booleans to control if the leds are on or not
+static bool	    led1On = false;          
 static bool 	    led2On = false;
 
-/// Function prototype for the custom IRQ handler function -- see below for the implementation
+
+// Functions of interruption handler for every button
 static irq_handler_t  button1_irq_handler(unsigned int irq, void *dev_id, struct pt_regs *regs);
 
 static irq_handler_t  button2_irq_handler(unsigned int irq, void *dev_id, struct pt_regs *regs);
@@ -45,72 +51,76 @@ static irq_handler_t  button4_irq_handler(unsigned int irq, void *dev_id, struct
  */
 static int __init ebbgpio_init(void){
    int result = 0;
-   printk(KERN_INFO "GPIO_TEST: Initializing the GPIO_TEST LKM\n");
-   // Is the GPIO a valid GPIO number (e.g., the BBB has 4x32 but not all available)
+   printk(KERN_INFO "BUTTON_LED: Initializing the BUTTON_LED LKM\n");
+   
+   // Check if all GPIOs are valid
    if (!gpio_is_valid(gpioLED1)){
-      printk(KERN_INFO "GPIO_TEST: invalid LED 1 GPIO\n");
+      printk(KERN_INFO "BUTTON_LED: invalid LED 1 GPIO\n");
       return -ENODEV;
    }
    if (!gpio_is_valid(gpioLED2)){
-      printk(KERN_INFO "GPIO_TEST: invalid LED 2 GPIO\n");
+      printk(KERN_INFO "BUTTON_LED: invalid LED 2 GPIO\n");
       return -ENODEV;
    }
    if (!gpio_is_valid(gpioButton1)){
-      printk(KERN_INFO "GPIO_TEST: invalid Button1 GPIO\n");
+      printk(KERN_INFO "BUTTON_LED: invalid Button1 GPIO\n");
       return -ENODEV;
    }
    if (!gpio_is_valid(gpioButton2)){
-      printk(KERN_INFO "GPIO_TEST: invalid Button2 GPIO\n");
+      printk(KERN_INFO "BUTTON_LED: invalid Button2 GPIO\n");
       return -ENODEV;
    }
    if (!gpio_is_valid(gpioButton3)){
-      printk(KERN_INFO "GPIO_TEST: invalid Button3 GPIO\n");
+      printk(KERN_INFO "BUTTON_LED: invalid Button3 GPIO\n");
       return -ENODEV;
    }
    if (!gpio_is_valid(gpioButton4)){
-      printk(KERN_INFO "GPIO_TEST: invalid Button 4 GPIO\n");
+      printk(KERN_INFO "BUTTON_LED: invalid Button 4 GPIO\n");
       return -ENODEV;
    }
-   // Going to set up the LED. It is a GPIO in output mode and will be on by default
+   
+   // LED off by default
    led1On = false;
    led2On = false;
    
-   gpio_request(gpioLED1, "sysfs");          // gpioLED is hardcoded to 49, request it
-   gpio_direction_output(gpioLED1, led1On);   // Set the gpio to be in output mode and on
-   gpio_export(gpioLED1, false);             // Causes gpio49 to appear in /sys/class/gpio
-			                    // the bool argument prevents the direction from being changed
-   gpio_request(gpioLED2, "sysfs");          // gpioLED is hardcoded to 49, request it
-   gpio_direction_output(gpioLED2, led2On);   // Set the gpio to be in output mode and on
-   gpio_export(gpioLED2, false);             // Causes gpio49 to appear in /sys/class/gpio
+   // Request to the OS the GPIO of both LEDs
+   gpio_request(gpioLED1, "sysfs");          
+   gpio_direction_output(gpioLED1, led1On);   // Set the gpio to be in output mode 
+   gpio_export(gpioLED1, false);             
+			                    
+   gpio_request(gpioLED2, "sysfs");          
+   gpio_direction_output(gpioLED2, led2On);   
+   gpio_export(gpioLED2, false);             
    
+   // Request to the OS the GPIO of all the buttons
    gpio_request(gpioButton1, "sysfs");       // Set up the gpioButton
    gpio_direction_input(gpioButton1);        // Set the button GPIO to be an input
-   gpio_set_debounce(gpioButton1, 300);      // Debounce the button with a delay of 200ms
-   gpio_export(gpioButton1, false);          // Causes gpio115 to appear in /sys/class/gpio
-			                    // the bool argument prevents the direction from being changed
+   gpio_set_debounce(gpioButton1, 300);      // Debounce the button with a delay of 300ms
+   gpio_export(gpioButton1, false);          
+			                    
    gpio_request(gpioButton2, "sysfs");       // Set up the gpioButton
    gpio_direction_input(gpioButton2);        // Set the button GPIO to be an input
-   gpio_set_debounce(gpioButton2, 300);      // Debounce the button with a delay of 200ms
-   gpio_export(gpioButton2, false);          // Causes gpio115 to appear in /sys/class/gpio
+   gpio_set_debounce(gpioButton2, 300);      // Debounce the button with a delay of 300ms
+   gpio_export(gpioButton2, false);          
 
    gpio_request(gpioButton3, "sysfs");       // Set up the gpioButton
    gpio_direction_input(gpioButton3);        // Set the button GPIO to be an input
-   gpio_set_debounce(gpioButton3, 300);      // Debounce the button with a delay of 200ms
-   gpio_export(gpioButton3, false);          // Causes gpio115 to appear in /sys/class/gpio
+   gpio_set_debounce(gpioButton3, 300);      // Debounce the button with a delay of 300ms
+   gpio_export(gpioButton3, false);          
 
    gpio_request(gpioButton4, "sysfs");       // Set up the gpioButton
    gpio_direction_input(gpioButton4);        // Set the button GPIO to be an input
-   gpio_set_debounce(gpioButton4, 300);      // Debounce the button with a delay of 200ms
-   gpio_export(gpioButton4, false);          // Causes gpio115 to appear in /sys/class/gpio
+   gpio_set_debounce(gpioButton4, 300);      // Debounce the button with a delay of 300ms
+   gpio_export(gpioButton4, false);         
    
    // Perform a quick test to see that the button is working as expected on LKM load
-   printk(KERN_INFO "GPIO_TEST: The button state is currently: %d\n", gpio_get_value(gpioButton1));
+   printk(KERN_INFO "BUTTON_LED: The button 1 state is currently: %d\n", gpio_get_value(gpioButton1));
 
-   // GPIO numbers and IRQ numbers are not the same! This function performs the mapping for us
+   // Map GPIO number to IRQ
    irqNumberButton1 = gpio_to_irq(gpioButton1);
-   printk(KERN_INFO "GPIO_TEST: The button 1 is mapped to IRQ: %d\n", irqNumberButton1);
+   printk(KERN_INFO "BUTTON_LED: The button 1 is mapped to IRQ: %d\n", irqNumberButton1);
 
-   // This next call requests an interrupt line
+   // Request an interrupt line
    result = request_irq(irqNumberButton1,             // The interrupt number requested
                         (irq_handler_t) button1_irq_handler, // The pointer to the handler function below
                         IRQF_TRIGGER_RISING,   // Interrupt on rising edge (button press, not release)
@@ -118,41 +128,36 @@ static int __init ebbgpio_init(void){
                         NULL);                 // The *dev_id for shared interrupt lines, NULL is okay
 
 
-   // GPIO numbers and IRQ numbers are not the same! This function performs the mapping for us
+  
    irqNumberButton2 = gpio_to_irq(gpioButton2);
    printk(KERN_INFO "GPIO_TEST: The button 2 is mapped to IRQ: %d\n", irqNumberButton2);
 
-   // This next call requests an interrupt line
-   result = request_irq(irqNumberButton2,             // The interrupt number requested
-                        (irq_handler_t) button2_irq_handler, // The pointer to the handler function below
-                        IRQF_TRIGGER_RISING,   // Interrupt on rising edge (button press, not release)
-                        "ebb_gpio_handler",    // Used in /proc/interrupts to identify the owner
-                        NULL);                 // The *dev_id for shared interrupt lines, NULL is okay
+   result = request_irq(irqNumberButton2,             
+                        (irq_handler_t) button2_irq_handler, 
+                        IRQF_TRIGGER_RISING,   
+                        "ebb_gpio_handler",    
+                        NULL);                 
 
 
-   // GPIO numbers and IRQ numbers are not the same! This function performs the mapping for us
    irqNumberButton3 = gpio_to_irq(gpioButton3);
    printk(KERN_INFO "GPIO_TEST: The button 3 is mapped to IRQ: %d\n", irqNumberButton3);
 
-   // This next call requests an interrupt line
-   result = request_irq(irqNumberButton3,             // The interrupt number requested
-                        (irq_handler_t) button3_irq_handler, // The pointer to the handler function below
-                        IRQF_TRIGGER_RISING,   // Interrupt on rising edge (button press, not release)
-                        "ebb_gpio_handler",    // Used in /proc/interrupts to identify the owner
-                        NULL);                 // The *dev_id for shared interrupt lines, NULL is okay
+   result = request_irq(irqNumberButton3,             
+                        (irq_handler_t) button3_irq_handler, 
+                        IRQF_TRIGGER_RISING,   
+                        "ebb_gpio_handler",    
+                        NULL);                 
 
-   // GPIO numbers and IRQ numbers are not the same! This function performs the mapping for us
    irqNumberButton4 = gpio_to_irq(gpioButton4);
    printk(KERN_INFO "GPIO_TEST: The button 4 is mapped to IRQ: %d\n", irqNumberButton4);
 
-   // This next call requests an interrupt line
-   result = request_irq(irqNumberButton4,             // The interrupt number requested
-                        (irq_handler_t) button4_irq_handler, // The pointer to the handler function below
-                        IRQF_TRIGGER_RISING,   // Interrupt on rising edge (button press, not release)
-                        "ebb_gpio_handler",    // Used in /proc/interrupts to identify the owner
-                        NULL);                 // The *dev_id for shared interrupt lines, NULL is okay
+   result = request_irq(irqNumberButton4,             
+                        (irq_handler_t) button4_irq_handler, 
+                        IRQF_TRIGGER_RISING,   
+                        "ebb_gpio_handler",    
+                        NULL);                 
    
-   printk(KERN_INFO "GPIO_TEST: The interrupt request result is: %d\n", result);
+   printk(KERN_INFO "BUTTON_LED: The interrupt request result is: %d\n", result);
    return result;
 }
 
@@ -162,12 +167,16 @@ static int __init ebbgpio_init(void){
  *  GPIOs and display cleanup messages.
  */
 static void __exit ebbgpio_exit(void){
-   printk(KERN_INFO "GPIO_TEST: The button 1 state is currently: %d\n", gpio_get_value(gpioButton1));
-   printk(KERN_INFO "GPIO_TEST: The button 1 was pressed %d times\n", button1Presses);
+   printk(KERN_INFO "BUTTON_LED: The button 1 state is currently: %d\n", gpio_get_value(gpioButton1));
+   printk(KERN_INFO "BUTTON_LED: The button 1 was pressed %d times\n", button1Presses);
+
+   printk(KERN_INFO "BUTTON_LED: The button 2 was pressed %d times\n", button2Presses);
+   printk(KERN_INFO "BUTTON_LED: The button 3 was pressed %d times\n", button3Presses);
+   printk(KERN_INFO "BUTTON_LED: The button 4 was pressed %d times\n", button4Presses);
    
-   gpio_set_value(gpioLED1, 0);              // Turn the LED off, makes it clear the device was unloaded
+   gpio_set_value(gpioLED1, 0);              // Turn the LED off
    gpio_unexport(gpioLED1);   // Unexport the LED GPIO
-   gpio_free(gpioLED1);
+   gpio_free(gpioLED1);  //Free GPIO
 
    gpio_set_value(gpioLED2, 0);
    gpio_unexport(gpioLED2);
@@ -177,20 +186,20 @@ static void __exit ebbgpio_exit(void){
    gpio_unexport(gpioButton1);               // Unexport the Button GPIO
    gpio_free(gpioButton1);                   // Free the Button GPIO
 
-   free_irq(irqNumberButton2, NULL);               // Free the IRQ number, no *dev_id required in this case
-   gpio_unexport(gpioButton2);               // Unexport the Button GPIO
-   gpio_free(gpioButton2);                   // Free the Button GPIO
+   free_irq(irqNumberButton2, NULL);              
+   gpio_unexport(gpioButton2);               
+   gpio_free(gpioButton2);                   
 
 
-   free_irq(irqNumberButton3, NULL);               // Free the IRQ number, no *dev_id required in this case
-   gpio_unexport(gpioButton3);               // Unexport the Button GPIO
-   gpio_free(gpioButton3);                   // Free the Button GPIO
+   free_irq(irqNumberButton3, NULL);              
+   gpio_unexport(gpioButton3);               
+   gpio_free(gpioButton3);                   
 
-   free_irq(irqNumberButton4, NULL);               // Free the IRQ number, no *dev_id required in this case
-   gpio_unexport(gpioButton4);               // Unexport the Button GPIO
-   gpio_free(gpioButton4);                   // Free the Button GPIO
+   free_irq(irqNumberButton4, NULL);               
+   gpio_unexport(gpioButton4);               
+   gpio_free(gpioButton4);                   
    
-   printk(KERN_INFO "GPIO_TEST: Goodbye from the LKM!\n");
+   printk(KERN_INFO "BUTTON_LED: Goodbye from the LKM!\n");
 }
 	
 /** @brief The GPIO IRQ Handler function
@@ -204,38 +213,46 @@ static void __exit ebbgpio_exit(void){
  *  return returns IRQ_HANDLED if successful -- should return IRQ_NONE otherwise.
  */
 static irq_handler_t button1_irq_handler(unsigned int irq, void *dev_id, struct pt_regs *regs){
-   led1On = true;   // Invert the LED state on each button press
+   /*
+   char *argv[] = {"/home/pi/button1.sh", NULL};
+
+   char *envp[] = {"HOME=/", NULL};
+   */
+   led1On = true;   // LED state to on
    gpio_set_value(gpioLED1, led1On);   // Set the physical LED accordingly
-   printk(KERN_INFO "GPIO_TEST: Interrupt! (button 1 state is %d)\n", gpio_get_value(gpioButton1));
+   printk(KERN_INFO "BUTTON_LED: Interrupt! (button 1 state is %d)\n", gpio_get_value(gpioButton1));
    button1Presses++;                         // Global counter, will be outputted when the module is unloaded
+
+   //call_usermodehelper(argv[0], argv, envp, UMH_NO_WAIT);
+
    return (irq_handler_t) IRQ_HANDLED;      // Announce that the IRQ has been handled correctly
 }
 
 
 static irq_handler_t button2_irq_handler(unsigned int irq, void *dev_id, struct pt_regs *regs){
-   led1On = false;                          // Invert the LED state on each button press
-   gpio_set_value(gpioLED1, led1On);          // Set the physical LED accordingly
-   printk(KERN_INFO "GPIO_TEST: Interrupt! (button 2 state is %d)\n", gpio_get_value(gpioButton2));
-   button2Presses++;                         // Global counter, will be outputted when the module is unloaded
-   return (irq_handler_t) IRQ_HANDLED;      // Announce that the IRQ has been handled correctly
+   led1On = false;                          
+   gpio_set_value(gpioLED1, led1On);          
+   printk(KERN_INFO "BUTTON_LED: Interrupt! (button 2 state is %d)\n", gpio_get_value(gpioButton2));
+   button2Presses++;                         
+   return (irq_handler_t) IRQ_HANDLED;      
 }
 
 
 static irq_handler_t button3_irq_handler(unsigned int irq, void *dev_id, struct pt_regs *regs){
-   led2On = true;                          // Invert the LED state on each button press
-   gpio_set_value(gpioLED2, led2On);          // Set the physical LED accordingly
+   led2On = true;                          
+   gpio_set_value(gpioLED2, led2On);          
    printk(KERN_INFO "GPIO_TEST: Interrupt! (button 3 state is %d)\n", gpio_get_value(gpioButton3));
-   button3Presses++;                         // Global counter, will be outputted when the module is unloaded
-   return (irq_handler_t) IRQ_HANDLED;      // Announce that the IRQ has been handled correctly
+   button3Presses++;                         
+   return (irq_handler_t) IRQ_HANDLED;      
 }
 
 
 static irq_handler_t button4_irq_handler(unsigned int irq, void *dev_id, struct pt_regs *regs){
-   led2On = false;                          // Invert the LED state on each button press
-   gpio_set_value(gpioLED2, led2On);          // Set the physical LED accordingly
+   led2On = false;                          
+   gpio_set_value(gpioLED2, led2On);          
    printk(KERN_INFO "GPIO_TEST: Interrupt! (button 4 state is %d)\n", gpio_get_value(gpioButton4));
-   button4Presses++;                         // Global counter, will be outputted when the module is unloaded
-   return (irq_handler_t) IRQ_HANDLED;      // Announce that the IRQ has been handled correctly
+   button4Presses++;                         
+   return (irq_handler_t) IRQ_HANDLED;      
 }
 
 /// This next calls are  mandatory -- they identify the initialization function
