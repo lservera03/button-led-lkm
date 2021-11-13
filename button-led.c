@@ -213,45 +213,65 @@ static void __exit ebbgpio_exit(void){
  *  return returns IRQ_HANDLED if successful -- should return IRQ_NONE otherwise.
  */
 static irq_handler_t button1_irq_handler(unsigned int irq, void *dev_id, struct pt_regs *regs){
-   /*
    char *argv[] = {"/home/pi/button1.sh", NULL};
 
    char *envp[] = {"HOME=/", NULL};
-   */
+   
    led1On = true;   // LED state to on
    gpio_set_value(gpioLED1, led1On);   // Set the physical LED accordingly
    printk(KERN_INFO "BUTTON_LED: Interrupt! (button 1 state is %d)\n", gpio_get_value(gpioButton1));
    button1Presses++;                         // Global counter, will be outputted when the module is unloaded
 
-   //call_usermodehelper(argv[0], argv, envp, UMH_NO_WAIT);
+   call_usermodehelper(argv[0], argv, envp, UMH_NO_WAIT);
 
    return (irq_handler_t) IRQ_HANDLED;      // Announce that the IRQ has been handled correctly
 }
 
 
 static irq_handler_t button2_irq_handler(unsigned int irq, void *dev_id, struct pt_regs *regs){
+   char *argv[] = {"/home/pi/button2.sh", NULL};
+
+   char *envp[] = {"HOME=/", NULL};
+
    led1On = false;                          
    gpio_set_value(gpioLED1, led1On);          
    printk(KERN_INFO "BUTTON_LED: Interrupt! (button 2 state is %d)\n", gpio_get_value(gpioButton2));
    button2Presses++;                         
+
+   call_usermodehelper(argv[0], argv, envp, UMH_NO_WAIT);
+
    return (irq_handler_t) IRQ_HANDLED;      
 }
 
 
 static irq_handler_t button3_irq_handler(unsigned int irq, void *dev_id, struct pt_regs *regs){
+   char *argv[] = {"/home/pi/button3.sh", NULL};
+
+   char *envp[] = {"HOME=/", NULL};
+   
    led2On = true;                          
    gpio_set_value(gpioLED2, led2On);          
    printk(KERN_INFO "GPIO_TEST: Interrupt! (button 3 state is %d)\n", gpio_get_value(gpioButton3));
    button3Presses++;                         
+   
+   call_usermodehelper(argv[0], argv, envp, UMH_NO_WAIT);
+   
    return (irq_handler_t) IRQ_HANDLED;      
 }
 
 
 static irq_handler_t button4_irq_handler(unsigned int irq, void *dev_id, struct pt_regs *regs){
+   char *argv[] = {"/home/pi/button4.sh", NULL};
+
+   char *envp[] = {"HOME=/", NULL};
+
    led2On = false;                          
    gpio_set_value(gpioLED2, led2On);          
    printk(KERN_INFO "GPIO_TEST: Interrupt! (button 4 state is %d)\n", gpio_get_value(gpioButton4));
    button4Presses++;                         
+
+   call_usermodehelper(argv[0], argv, envp, UMH_NO_WAIT);
+
    return (irq_handler_t) IRQ_HANDLED;      
 }
 
